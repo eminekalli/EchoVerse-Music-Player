@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import DataView from './components/DataView';
-import AiGenerator from './components/AiGenerator';
+import ManualEntry from './components/ManualEntry';
 import SmartQuery from './components/SmartQuery';
 import { initialData } from './services/mockData';
 import { EchoVerseData, Artist, Album, Track } from './types';
@@ -20,8 +20,6 @@ const App: React.FC = () => {
       tracks: [...prev.tracks, ...(newData.tracks || [])],
       labels: [...prev.labels, ...(newData.labels || [])],
       genres: [...prev.genres, ...(newData.genres || [])],
-      // Junctions are complex to auto-generate perfectly without strict ID mapping, 
-      // but simplistic appending works for this demo level.
       trackWriters: [...prev.trackWriters, ...(newData.trackWriters || [])],
       trackGenres: [...prev.trackGenres, ...(newData.trackGenres || [])],
     }));
@@ -106,8 +104,8 @@ const App: React.FC = () => {
             </div>
           </div>
         );
-      case 'generator':
-        return <AiGenerator currentData={data} onDataAdd={handleDataAdd} />;
+      case 'manual':
+        return <ManualEntry currentData={data} onDataAdd={handleDataAdd} />;
       default:
         return <Dashboard data={data} />;
     }

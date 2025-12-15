@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Database, Music, Disc, Mic2, FileJson, Sparkles, Search } from 'lucide-react';
+import { LayoutDashboard, Database, Music, Disc, Mic2, FileJson, Sparkles, Search, PlusCircle } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,12 +10,12 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange }) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'query', label: 'Smart Query', icon: Search, highlight: false },
+    { id: 'query', label: 'Advanced Search', icon: Search, highlight: false },
     { id: 'artists', label: 'Artists', icon: Mic2 },
     { id: 'albums', label: 'Albums', icon: Disc },
     { id: 'tracks', label: 'Tracks', icon: Music },
     { id: 'data', label: 'Raw Data & Export', icon: Database },
-    { id: 'generator', label: 'AI Data Generator', icon: Sparkles, highlight: true },
+    { id: 'manual', label: 'Manual Entry', icon: PlusCircle, highlight: true },
   ];
 
   return (

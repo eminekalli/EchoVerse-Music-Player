@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
-import { Search, Sparkles, Filter, AlertCircle, ArrowRight } from 'lucide-react';
-import { interpretQuery, QueryInterpretation } from '../services/geminiService';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, Filter, ArrowRight, ListFilter, XCircle } from 'lucide-react';
 import { EchoVerseData } from '../types';
 import DataView from './DataView';
 
@@ -8,62 +7,88 @@ interface SmartQueryProps {
   data: EchoVerseData;
 }
 
+type EntityType = 'artists' | 'albums' | 'tracks';
+type OperatorType = 'contains' | 'equals' | 'gt' | 'lt' | 'gte' | 'lte';
+
+interface FieldDefinition {
+  key: string;
+  label: string;
+  type: 'text' | 'number';
+}
+
+const FIELD_CONFIG: Record<EntityType, FieldDefinition[]> = {
+  artists: [
+    { key: 'name', label: 'Name', type: 'text' },
+    { key: 'bio', label: 'Biography', type: 'text' },
+    { key: 'artist_id', label: 'Artist ID', type: 'text' },
+  ],
+  albums: [
+    { key: 'title', label: 'Title', type: 'text' },
+    { key: 'release_year', label: 'Release Year', type: 'number' },
+    { key: 'album_id', label: 'Album ID', type: 'text' },
+  ],
+  tracks: [
+    { key: 'title', label: 'Title', type: 'text' },
+    { key: 'play_count', label: 'Play Count', type: 'number' },
+    { key: 'duration_seconds', label: 'Duration (Seconds)', type: 'number' },
+    { key: 'track_id', label: 'Track ID', type: 'text' },
+  ]
+};
+
 const SmartQuery: React.FC<SmartQueryProps> = ({ data }) => {
-  const [query, setQuery] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ items: any[], interpretation: QueryInterpretation } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // State for manual filters
+  const [selectedEntity, setSelectedEntity] = useState<EntityType>('albums');
+  const [selectedField, setSelectedField] = useState<string>('release_year');
+  const [operator, setOperator] = useState<OperatorType>('gt');
+  const [searchValue, setSearchValue] = useState<string>('2010');
+  
+  const [results, setResults] = useState<any[]>([]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+  // Update field selection when entity changes to avoid mismatch
+  useEffect(() => {
+    setSelectedField(FIELD_CONFIG[selectedEntity][0].key);
+  }, [selectedEntity]);
 
-    setLoading(true);
-    setError(null);
-    setResult(null);
+  // Execute Filter Logic
+  useEffect(() => {
+    if (searchValue === '') {
+      setResults(data[selectedEntity]);
+      return;
+    }
 
-    try {
-      const interpretation = await interpretQuery(query);
+    const collection = data[selectedEntity];
+    const fieldDef = FIELD_CONFIG[selectedEntity].find(f => f.key === selectedField);
+    const isNumberField = fieldDef?.type === 'number';
 
-      if (!interpretation) {
-        setError("AI could not understand the query. Please try being more specific.");
-        setLoading(false);
-        return;
+    const filtered = collection.filter((item: any) => {
+      let itemValue = item[selectedField];
+      let queryValue: any = searchValue;
+
+      if (isNumberField) {
+        itemValue = Number(itemValue);
+        queryValue = Number(searchValue);
+        if (isNaN(queryValue)) return false; // Don't filter if input is invalid number
+      } else {
+        itemValue = String(itemValue).toLowerCase();
+        queryValue = String(searchValue).toLowerCase();
       }
 
-      // Apply Filters locally
-      const collection = data[interpretation.targetEntity];
-      
-      const filteredItems = collection.filter((item: any) => {
-        return interpretation.conditions.every((cond) => {
-          const itemValue = item[cond.field];
-          
-          switch (cond.operator) {
-            case 'equals': return itemValue == cond.value;
-            case 'contains': return String(itemValue).toLowerCase().includes(String(cond.value).toLowerCase());
-            case 'gt': return itemValue > cond.value;
-            case 'gte': return itemValue >= cond.value;
-            case 'lt': return itemValue < cond.value;
-            case 'lte': return itemValue <= cond.value;
-            default: return true;
-          }
-        });
-      });
+      switch (operator) {
+        case 'contains': return String(itemValue).includes(String(queryValue));
+        case 'equals': return itemValue == queryValue;
+        case 'gt': return itemValue > queryValue;
+        case 'gte': return itemValue >= queryValue;
+        case 'lt': return itemValue < queryValue;
+        case 'lte': return itemValue <= queryValue;
+        default: return true;
+      }
+    });
 
-      setResult({
-        items: filteredItems,
-        interpretation
-      });
+    setResults(filtered);
+  }, [data, selectedEntity, selectedField, operator, searchValue]);
 
-    } catch (err) {
-      setError("An error occurred while processing your request.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Dynamic Column Generation based on Entity Type
-  const getColumns = (entityType: string) => {
+  // Dynamic Column Generation
+  const getColumns = (entityType: EntityType) => {
     switch (entityType) {
       case 'artists':
         return [
@@ -89,83 +114,123 @@ const SmartQuery: React.FC<SmartQueryProps> = ({ data }) => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8">
       <div className="text-center space-y-2">
          <h2 className="text-3xl font-bold text-white flex items-center justify-center gap-3">
-            <Sparkles className="text-indigo-400" />
-            Smart Query
+            <ListFilter className="text-indigo-400" />
+            Advanced Search
          </h2>
-         <p className="text-slate-400">Ask questions in plain language to filter your database.</p>
+         <p className="text-slate-400">Filter your database using specific criteria manually.</p>
       </div>
 
-      {/* Search Bar */}
+      {/* Filter Controls */}
       <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-lg">
-        <form onSubmit={handleSearch} className="flex gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-            <input 
-              type="text" 
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="e.g., Show me albums released after 2018"
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-12 pr-4 py-4 text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none focus:border-transparent placeholder-slate-600 transition-all"
-            />
-          </div>
-          <button 
-            type="submit" 
-            disabled={loading || !query.trim()}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {loading ? 'Analyzing...' : 'Search'}
-          </button>
-        </form>
-
-        {/* Suggested Queries */}
-        <div className="mt-4 flex flex-wrap gap-2">
-            <span className="text-xs text-slate-500 uppercase font-bold tracking-wider pt-1.5 mr-2">Try:</span>
-            {['Albums after 2020', 'Tracks with more than 1,000,000 plays', 'Artists containing "Blue"', 'Songs shorter than 200 seconds'].map(s => (
-                <button key={s} onClick={() => setQuery(s)} className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1 rounded-full transition-colors">
-                    {s}
-                </button>
-            ))}
-        </div>
-      </div>
-
-      {/* Error State */}
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-lg flex items-center gap-3">
-          <AlertCircle size={20} />
-          {error}
-        </div>
-      )}
-
-      {/* Results Area */}
-      {result && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-          <div className="bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-lg flex items-start gap-4">
-            <Filter className="text-indigo-400 mt-1" size={20} />
-            <div>
-                <h4 className="text-indigo-300 font-semibold text-sm uppercase tracking-wide mb-1">Active Filter Logic</h4>
-                <p className="text-slate-300 text-sm">
-                    {result.interpretation.description}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                    {result.interpretation.conditions.map((c, i) => (
-                        <span key={i} className="inline-flex items-center gap-1 bg-indigo-500/20 text-indigo-300 text-xs px-2 py-1 rounded border border-indigo-500/30 font-mono">
-                            {c.field} <ArrowRight size={10} /> {c.operator} <ArrowRight size={10} /> {String(c.value)}
-                        </span>
-                    ))}
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          
+          {/* 1. Entity Selection */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Target Table</label>
+            <div className="relative">
+              <select 
+                value={selectedEntity}
+                onChange={(e) => setSelectedEntity(e.target.value as EntityType)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
+              >
+                <option value="albums">Albums</option>
+                <option value="artists">Artists</option>
+                <option value="tracks">Tracks</option>
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">▼</div>
             </div>
           </div>
 
-          <DataView 
-            title={`Search Results: ${result.interpretation.targetEntity.charAt(0).toUpperCase() + result.interpretation.targetEntity.slice(1)}`}
-            data={result.items}
-            columns={getColumns(result.interpretation.targetEntity)}
-          />
+          {/* 2. Field Selection */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Field</label>
+            <div className="relative">
+              <select 
+                value={selectedField}
+                onChange={(e) => setSelectedField(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
+              >
+                {FIELD_CONFIG[selectedEntity].map(field => (
+                  <option key={field.key} value={field.key}>{field.label}</option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">▼</div>
+            </div>
+          </div>
+
+          {/* 3. Operator Selection */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Operator</label>
+            <div className="relative">
+              <select 
+                value={operator}
+                onChange={(e) => setOperator(e.target.value as OperatorType)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer font-mono text-sm"
+              >
+                <option value="contains">Contains (Abc)</option>
+                <option value="equals">Equals (=)</option>
+                <option value="gt">Greater Than (&gt;)</option>
+                <option value="lt">Less Than (&lt;)</option>
+                <option value="gte">Greater/Equal (&ge;)</option>
+                <option value="lte">Less/Equal (&le;)</option>
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">▼</div>
+            </div>
+          </div>
+
+          {/* 4. Value Input */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Value</label>
+            <div className="relative">
+              <input 
+                type="text" 
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                placeholder="Enter value..."
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              />
+               {searchValue && (
+                <button 
+                  onClick={() => setSearchValue('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400"
+                >
+                  <XCircle size={16} />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* Quick Suggestions / Filter Summary */}
+        <div className="mt-4 flex items-center justify-between border-t border-slate-800 pt-4">
+           <div className="flex items-center gap-2 text-sm text-slate-400">
+              <Filter size={16} className="text-indigo-400" />
+              <span>Current Logic:</span>
+              <span className="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/30 font-mono">
+                 {selectedField}
+              </span>
+              <span className="text-slate-600 font-bold">{operator}</span>
+              <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700 font-mono">
+                 "{searchValue}"
+              </span>
+           </div>
+           <div className="text-sm text-slate-500">
+             Found <span className="text-white font-bold">{results.length}</span> matches
+           </div>
+        </div>
+      </div>
+
+      {/* Results Area */}
+      <div className="animate-in fade-in slide-in-from-bottom-4">
+        <DataView 
+          title={`${selectedEntity.charAt(0).toUpperCase() + selectedEntity.slice(1)} Results`}
+          data={results}
+          columns={getColumns(selectedEntity)}
+        />
+      </div>
     </div>
   );
 };
