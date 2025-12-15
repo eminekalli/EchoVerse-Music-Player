@@ -37,47 +37,61 @@ const ManualEntry: React.FC<ManualEntryProps> = ({ currentData, onDataAdd }) => 
     setTimeout(() => setSuccessMsg(null), 3000);
   };
 
+  // Helper to generate sequential IDs
+  const getNextId = (prefix: string, list: any[], key: string) => {
+    const ids = list.map((item: any) => {
+        const val = item[key];
+        const parts = val.split('_');
+        // Grab the last segment
+        const num = parseInt(parts[parts.length - 1], 10);
+        return isNaN(num) ? 0 : num;
+    });
+    const maxId = Math.max(0, ...ids);
+    return `${prefix}_${maxId + 1}`;
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     setSuccessMsg(null);
 
-    const timestamp = Date.now();
-
     if (activeType === 'artist') {
       if (!artistName) return;
+      const newId = getNextId('art', currentData.artists, 'artist_id');
       const newArtist = {
-        artist_id: `art_m_${timestamp}`,
+        artist_id: newId,
         name: artistName,
         bio: artistBio || 'No biography available.'
       };
       onDataAdd({ artists: [newArtist] });
-      setSuccessMsg(`Artist "${artistName}" added successfully.`);
+      setSuccessMsg(`Artist "${artistName}" added successfully (ID: ${newId}).`);
     } 
     
     else if (activeType === 'album') {
       if (!albumTitle || !albumArtistId || !albumLabelId) return;
+      const newId = getNextId('alb', currentData.albums, 'album_id');
       const newAlbum = {
-        album_id: `alb_m_${timestamp}`,
+        album_id: newId,
         title: albumTitle,
         release_year: albumYear,
         artist_id: albumArtistId,
         label_id: albumLabelId
       };
       onDataAdd({ albums: [newAlbum] });
-      setSuccessMsg(`Album "${albumTitle}" added successfully.`);
+      setSuccessMsg(`Album "${albumTitle}" added successfully (ID: ${newId}).`);
     } 
 
     else if (activeType === 'track') {
       if (!trackTitle || !trackAlbumId) return;
+      const newId = getNextId('trk', currentData.tracks, 'track_id');
       const newTrack = {
-        track_id: `trk_m_${timestamp}`,
+        track_id: newId,
         title: trackTitle,
         duration_seconds: trackDuration,
         album_id: trackAlbumId,
         play_count: trackPlayCount
       };
       onDataAdd({ tracks: [newTrack] });
-      setSuccessMsg(`Track "${trackTitle}" added successfully.`);
+      setSuccessMsg(`Track "${trackTitle}" added successfully (ID: ${newId}).`);
     }
 
     resetForms();

@@ -77,9 +77,12 @@ const App: React.FC = () => {
             data={data.tracks} 
             columns={[
               { header: 'Title', accessor: (t) => <span className="font-medium text-white">{t.title}</span> },
-              { header: 'Duration', accessor: (t) => `${Math.floor(t.duration_seconds / 60)}:${(t.duration_seconds % 60).toString().padStart(2, '0')}` },
+              { header: 'Duration', accessor: (t) => {
+                  const duration = t.duration_seconds || 0;
+                  return `${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')}`;
+              }},
               { header: 'Album', accessor: (t) => data.albums.find(a => a.album_id === t.album_id)?.title || 'Unknown' },
-              { header: 'Plays', accessor: (t) => <span className="text-green-400 font-mono">{t.play_count.toLocaleString()}</span> },
+              { header: 'Plays', accessor: (t) => <span className="text-green-400 font-mono">{(t.play_count ?? 0).toLocaleString()}</span> },
             ]} 
           />
         );

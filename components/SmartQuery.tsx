@@ -105,8 +105,11 @@ const SmartQuery: React.FC<SmartQueryProps> = ({ data }) => {
       case 'tracks':
         return [
           { header: 'Title', accessor: (t: any) => <span className="font-medium text-white">{t.title}</span> },
-          { header: 'Duration', accessor: (t: any) => `${Math.floor(t.duration_seconds / 60)}:${(t.duration_seconds % 60).toString().padStart(2, '0')}` },
-          { header: 'Plays', accessor: (t: any) => <span className="text-green-400 font-mono">{t.play_count.toLocaleString()}</span> },
+          { header: 'Duration', accessor: (t: any) => {
+             const duration = t.duration_seconds || 0;
+             return `${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')}`;
+          }},
+          { header: 'Plays', accessor: (t: any) => <span className="text-green-400 font-mono">{(t.play_count ?? 0).toLocaleString()}</span> },
         ];
       default:
         return [];

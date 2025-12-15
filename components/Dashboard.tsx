@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 import { EchoVerseData } from '../types';
 import { TrendingUp, Users, Disc, Music } from 'lucide-react';
 
@@ -25,7 +25,7 @@ const StatCard = ({ title, value, sub, icon: Icon }: any) => (
 const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   
   const stats = useMemo(() => {
-    const totalStreams = data.tracks.reduce((sum, t) => sum + t.play_count, 0);
+    const totalStreams = data.tracks.reduce((sum, t) => sum + (t.play_count || 0), 0);
     const totalArtists = data.artists.length;
     const totalAlbums = data.albums.length;
     
@@ -34,7 +34,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     data.tracks.forEach(track => {
       const album = data.albums.find(a => a.album_id === track.album_id);
       if (album) {
-        artistStreams[album.artist_id] = (artistStreams[album.artist_id] || 0) + track.play_count;
+        artistStreams[album.artist_id] = (artistStreams[album.artist_id] || 0) + (track.play_count || 0);
       }
     });
     
@@ -71,6 +71,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     };
   }, [data]);
 
+  // Bright colors for dark theme
+  const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'];
+
   return (
     <div className="space-y-8">
       <div>
@@ -92,15 +95,27 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats.artistChartData}>
-                <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`} />
+                <XAxis 
+                  dataKey="name" 
+                  stroke="#94a3b8" 
+                  fontSize={12} 
+                  tickLine={false} 
+                  axisLine={false} 
+                />
+                <YAxis 
+                  stroke="#94a3b8" 
+                  fontSize={12} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`} 
+                />
                 <Tooltip 
                   cursor={{fill: '#1e293b'}}
                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9' }}
                 />
                 <Bar dataKey="streams" radius={[4, 4, 0, 0]}>
                   {stats.artistChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={index === 0 ? '#22c55e' : '#3b82f6'} />
+                    <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#3b82f6'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -117,18 +132,27 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
                 <Pie
                   data={stats.genreChartData}
                   cx="50%"
-                  cy="50%"
+                  cy="45%"
                   innerRadius={60}
                   outerRadius={100}
-                  fill="#8884d8"
                   paddingAngle={5}
                   dataKey="value"
+                  label={{ fill: '#f8fafc', fontSize: 12, fontWeight: 500 }} // White Labels
                 >
                   {stats.genreChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b'][index % 4]} />
+                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9' }} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9' }} 
+                  itemStyle={{ color: '#f8fafc' }}
+                />
+                <Legend 
+                  verticalAlign="bottom" 
+                  height={36} 
+                  iconType="circle"
+                  formatter={(value) => <span style={{ color: '#cbd5e1' }}>{value}</span>} 
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
